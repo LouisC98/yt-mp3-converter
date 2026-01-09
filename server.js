@@ -15,7 +15,6 @@ app.get('/search', async (req, res) => {
     if (query.length <= 2) return res.status(400).json({ error: "Query trop courte" });
     try {
         const result = await yt.search(query);
-        console.log(result)
         res.json(result);
     } catch (error) {
         console.log(error);
@@ -29,7 +28,6 @@ app.get('/metadata', async (req, res) => {
     try {
         const url = `https://www.youtube.com/watch?v=${videoId}`;
         const result = await yt.metadata(url);
-        console.log(result)
         res.json(result);
     } catch (error) {
         console.log(error);
