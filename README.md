@@ -1,6 +1,6 @@
 # 🎵 YouTube to MP3 Converter – Backend
 
-Un **serveur Node.js / Express robuste** permettant de convertir des vidéos YouTube en fichiers **MP3**, avec gestion automatique du temps de traitement et **téléchargement en streaming**.
+Un **serveur Node.js / Express robuste** permettant de convertir des vidéos YouTube en fichiers **MP3** en utilisant le package `vreden/youtube_scraper`, avec gestion automatique du temps de traitement et **téléchargement en streaming**.
 
 Ce backend est conçu pour être **simple à intégrer côté frontend**, tout en contournant les limitations classiques comme le **CORS** et les délais de conversion.
 
@@ -8,14 +8,11 @@ Ce backend est conçu pour être **simple à intégrer côté frontend**, tout e
 
 ## ✨ Fonctionnalités
 
-- 🔁 **Polling automatique**  
-  Le serveur interroge l’API de conversion et attend que le statut passe à `completed` avant de répondre au client.
+- 🔁 **Conversion directe**  
+  Le serveur utilise le package `vreden/youtube_scraper` pour convertir directement la vidéo sans attendre un statut externe.
 
-- 🌐 **Proxy de téléchargement (streaming)**  
-  Le MP3 est téléchargé via Axios en mode `stream` puis renvoyé directement au navigateur.
-
-- 🔒 **Sécurisé**  
-  Les clés API sont stockées dans des **variables d’environnement** (`.env`).
+- 🌐 **Téléchargement direct**  
+  Le package `vreden/youtube_scraper` fournit une URL directe pour télécharger le fichier MP3.
 
 - ⚡ **Prêt pour le Frontend**  
   Configuration **CORS** incluse pour `http://localhost:4200` (Angular par défaut).
@@ -26,7 +23,7 @@ Ce backend est conçu pour être **simple à intégrer côté frontend**, tout e
 
 - **Node.js**
 - **Express** – Framework backend
-- **Axios** – Client HTTP (streaming)
+- **youtube-scraper (vreden/youtube_scraper)** – Conversion et scraping YouTube
 - **CORS** – Sécurité frontend/backend
 - **Dotenv** – Gestion des variables d’environnement
 
@@ -53,8 +50,6 @@ Créer un fichier **`.env`** à la racine du projet :
 
 ```env
 PORT=3000
-RAPIDAPI_KEY=votre_cle_api
-RAPIDAPI_USERNAME=votre_username_rapidapi
 ```
 
 ---
@@ -82,17 +77,40 @@ GET /convert?id=VIDEO_ID
 ```
 
 📌 **Description**  
-- Envoie la requête de conversion à l’API externe
-- Boucle tant que le statut est `processing`
-- Retourne l’URL finale du MP3
+- Utilise `vreden/youtube_scraper` pour convertir la vidéo.
+- Retourne directement la réponse du package, qui contient l'URL du MP3 et d'autres informations.
 
 ✅ **Réponse (succès)**
 
 ```json
 {
-  "status": "completed",
-  "title": "Nom de la vidéo",
-  "mp3Url": "https://url-du-fichier.mp3"
+  "status": true,
+  "creator": "@vreden/youtube_scraper",
+  "metadata": {
+    "type": "video",
+    "videoId": "HoTYytnjCb0",
+    "url": "https://youtube.com/watch?v=HoTYytnjCb0",
+    "title": "Damso - Smog",
+    "description": "...",
+    "image": "https://i.ytimg.com/vi/HoTYytnjCb0/hq720.jpg",
+    "thumbnail": "https://i.ytimg.com/vi/HoTYytnjCb0/hq720.jpg",
+    "seconds": 167,
+    "timestamp": "2:47",
+    "duration": { "toString": "[Function: toString]", "seconds": 167, "timestamp": "2:47" },
+    "ago": "7 years ago",
+    "views": 61282483,
+    "author": {
+      "name": "le rappeur damso",
+      "url": "https://youtube.com/channel/UCxsYR3_7CKZeRfdJpqGxmdw"
+    }
+  },
+  "download": {
+    "status": true,
+    "quality": "128kbps",
+    "availableQuality": [ 92, 128, 256, 320 ],
+    "url": "https://cdn402.savetube.vip/media/HoTYytnjCb0/damso-smog-128-ytshorts.savetube.me.mp3",
+    "filename": "Damso - Smog (128kbps).mp3"
+  }
 }
 ```
 
@@ -104,33 +122,15 @@ GET /convert?id=VIDEO_ID
 }
 ```
 
----
 
-### 2️⃣ Télécharger le fichier MP3
-
-```http
-GET /download?url=FICHIER_URL&name=NOM_OPTIONNEL
-```
-
-📌 **Description**  
-- Télécharge le fichier MP3 via Axios en streaming
-- Le renvoie directement au navigateur
-- Force le téléchargement (`Content-Disposition: attachment`)
-
-📎 **Paramètres**
-
-| Paramètre | Description |
-|----------|-------------|
-| `url` | URL du fichier MP3 (obligatoire) |
-| `name` | Nom du fichier (optionnel, sans `.mp3`) |
 
 ---
 
 ## 🔐 Sécurité
 
-- Les clés API sont stockées dans `.env`
-- Aucune clé n’est exposée côté client
-- Le backend agit comme **proxy sécurisé**
+- Aucune clé API n’est exposée côté client
+- Le backend agit comme **proxy sécurisé** pour les téléchargements
+- Une validation basique est faite sur l'ID de la vidéo YouTube
 
 ---
 
@@ -139,7 +139,9 @@ GET /download?url=FICHIER_URL&name=NOM_OPTIONNEL
 ```ts
 this.http.get('http://localhost:3000/convert?id=VIDEO_ID')
   .subscribe(res => {
-    window.location.href = `http://localhost:3000/download?url=${res.mp3Url}`;
+    // L'URL du MP3 est dans res.download.url
+    // Le titre est dans res.metadata.title
+    window.open(res.download.url, '_blank');
   });
 ```
 

@@ -1,7 +1,7 @@
-// server.js
 const express = require('express');
-const axios = require('axios');
+const yt = require('@vreden/youtube_scraper');
 const cors = require('cors');
+const https = require('https');
 require('dotenv').config();
 
 const app = express();
@@ -13,63 +13,46 @@ app.use(express.json());
 app.get('/convert', async (req, res) => {
     const videoId = req.query.id;
     if (!videoId) return res.status(400).json({ error: "ID requis" });
-
-    const options = {
-        method: 'GET',
-        url: 'https://youtube-mp36.p.rapidapi.com/dl',
-        params: { id: videoId },
-        headers: {
-            'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-            'x-rapidapi-host': 'youtube-mp36.p.rapidapi.com',
-        }
-    };
-
     try {
-        let finished = false;
-        while (!finished) {
-            const response = await axios.request(options);
-            const data = response.data;
-
-            if (data.status === 'ok') {
-                finished = true;
-                return res.json(data); // Succès
-            } else if (data.status === 'processing') {
-                // On attend 1 seconde avant la prochaine itération de la boucle
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            } else {
-                finished = true;
-                return res.status(500).json({ status: 'fail', msg: data.msg });
-            }
-        }
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+        const result = await yt.ytmp3(url, 128);
+        res.json(result);
     } catch (error) {
-        res.status(500).json({ error: "Erreur API" });
+        console.log(error);
+        res.status(500).json({ message: "Erreur lors de la conversion", error: error.message });
     }
 });
 
-app.get('/download', async (req, res) => {
-    const fileUrl = req.query.url;
-    const fileName = req.query.name || 'music.mp3';
-
+app.get('/download-mp3', async (req, res) => {
+    const videoId = req.query.id;
+    const filename = req.query.title;
+    if (!videoId) return res.status(400).json({ error: "ID requis" });
     try {
-        const response = await axios({
-            url: fileUrl,
-            method: 'GET',
-            responseType: 'stream',
-            headers: {
-                'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) ${process.env.RAPIDAPI_USERNAME}`
-            }
-        });
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+        const result = await yt.ytmp3(url, 128);
 
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+        const fileUrl = result.download.url;
+
+        const rawTitle = filename ?? result.download.filename ?? 'audio';
+        const safeTitle = rawTitle.replace(/[\\/:*?"<>|]/g, "").trim();
+        const encodedTitle = encodeURIComponent(safeTitle);
+
+        res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}"; filename*=UTF-8''${encodedTitle}.mp3`);
         res.setHeader('Content-Type', 'audio/mpeg');
 
-        response.data.pipe(res);
+        https.get(fileUrl, (mp3Response) => {
+            mp3Response.pipe(res);
+        }).on('error', (e) => {
+            console.error(e);
+            res.status(500).json({ message: "Erreur lors de la récupération du fichier MP3.", error: e });
+        });
     } catch (error) {
-        res.status(500).send("Erreur lors du téléchargement");
+        console.log(error);
+        res.status(500).json({ message: "Erreur lors de la conversion", error: error.message });
     }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = 8000;
 app.listen(PORT, () => {
     console.log(`Serveur prêt sur le port ${PORT}`);
 });
