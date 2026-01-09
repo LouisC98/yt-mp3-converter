@@ -10,6 +10,33 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.get('/search', async (req, res) => {
+    const query = req.query.q;
+    if (query.length <= 2) return res.status(400).json({ error: "Query trop courte" });
+    try {
+        const result = await yt.search(query);
+        console.log(result)
+        res.json(result);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Erreur lors de la conversion", error: error.message });
+    }
+});
+
+app.get('/metadata', async (req, res) => {
+    const videoId = req.query.id;
+    if (!videoId) return res.status(400).json({ error: "ID requis" });
+    try {
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+        const result = await yt.metadata(url);
+        console.log(result)
+        res.json(result);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Erreur lors de la conversion", error: error.message });
+    }
+});
+
 app.get('/convert', async (req, res) => {
     const videoId = req.query.id;
     if (!videoId) return res.status(400).json({ error: "ID requis" });
