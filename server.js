@@ -14,7 +14,7 @@ const SECRET_KEY = process.env.SECRET_KEY || 'votre_cle_secrete_par_defaut';
 const USERS_FILE = path.join(__dirname, 'users.json');
 
 app.use(cors({
-    origin: 'http://localhost:4200',
+    origin: process.env.APP_DOMAIN,
     credentials: true
 }));
 app.use(express.json());
